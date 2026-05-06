@@ -1,0 +1,40 @@
+{% extends "base_email.html.jinja2" %}
+
+{% block content %}
+    <h2 style="color: #0f172a; margin-top: 0;">Weekly Financial Summary</h2>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Reporting period ending {{ end_date or 'today' }}</p>
+    
+    <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+        <div style="flex: 1; background-color: #f0fdf4; padding: 16px; border-radius: 12px; border: 1px solid #dcfce7;">
+            <div style="color: #166534; font-size: 12px; font-weight: 700; text-transform: uppercase;">Income</div>
+            <div style="color: #15803d; font-size: 20px; font-weight: 700;">${{ income }}</div>
+        </div>
+        <div style="flex: 1; background-color: #fef2f2; padding: 16px; border-radius: 12px; border: 1px solid #fee2e2;">
+            <div style="color: #991b1b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Expenses</div>
+            <div style="color: #b91c1c; font-size: 20px; font-weight: 700;">${{ expenses }}</div>
+        </div>
+    </div>
+
+    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-bottom: 12px;">Net Cash Flow</td>
+                <td style="text-align: right; font-weight: 700; padding-bottom: 12px; color: #0f172a;">${{ net_flow }}</td>
+            </tr>
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-bottom: 12px;">Transactions Reviewed</td>
+                <td style="text-align: right; font-weight: 600; padding-bottom: 12px; color: #0f172a;">{{ count }}</td>
+            </tr>
+            <tr>
+                <td style="color: #64748b; font-size: 14px; font-weight: 700; color: #92400e;">Pending Review</td>
+                <td style="text-align: right; font-weight: 700; color: #b45309;">{{ pending_count }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <p>Your financial data is up to date as of today. We recommend reviewing the pending transactions to maintain accurate books.</p>
+
+    <div style="text-align: center;">
+        <a href="{{ dashboard_url }}" class="button">Go to Dashboard</a>
+    </div>
+{% endblock %}

@@ -1,0 +1,55 @@
+[
+  {
+    "vendor_raw": "THE HOME DEPOT #4455 ATLANTA GA",
+    "description_raw": "PURCHASE",
+    "amount": -247.83,
+    "date": "2025-09-15",
+    "account_name": "Wells Fargo Business Checking",
+    "expected_account_code": "EXP-REPAIRS",
+    "expected_property_allocation": [{"property_name": "123 Oak St", "percentage": 100}],
+    "notes": "Atlanta HD close to 123 Oak St; clear attribution"
+  },
+  {
+    "vendor_raw": "LIMA ONE CAPITAL LLC",
+    "description_raw": "LOAN PAYMENT",
+    "amount": -2500.00,
+    "date": "2025-09-01",
+    "account_name": "Wells Fargo Business Checking",
+    "expected_account_code": "INT-MORTGAGE",
+    "expected_property_allocation": [{"property_name": "123 Oak St", "percentage": 100}],
+    "notes": "Mortgage payment"
+  },
+  {
+    "vendor_raw": "GEORGIA POWER",
+    "description_raw": "ONLINE PMT",
+    "amount": -150.00,
+    "date": "2025-09-10",
+    "account_name": "Wells Fargo Business Checking",
+    "expected_account_code": "EXP-UTILITIES",
+    "expected_property_allocation": [{"property_name": "123 Oak St", "percentage": 100}],
+    "notes": "Electric bill"
+  },
+  {
+    "vendor_raw": "PAYPAL *UBER EATS",
+    "description_raw": "MEAL DELIVERY",
+    "amount": -35.50,
+    "date": "2025-09-12",
+    "account_name": "Amex Credit Card",
+    "expected_account_code": "EXP-TRAVEL",
+    "expected_property_allocation": [],
+    "notes": "Travel/Meal expense"
+  },
+  {
+    "vendor_raw": "STATE FARM INSURANCE",
+    "description_raw": "PREMIUM",
+    "amount": -400.00,
+    "date": "2025-09-05",
+    "account_name": "Wells Fargo Business Checking",
+    "expected_account_code": "EXP-INS",
+    "expected_property_allocation": [
+      {"property_name": "123 Oak St", "percentage": 50},
+      {"property_name": "456 Maple Dr", "percentage": 50}
+    ],
+    "notes": "Even split across properties"
+  }
+]

@@ -1,0 +1,22 @@
+{% extends "base_email.html.jinja2" %}
+
+{% block content %}
+    <div class="alert-box alert-warning">
+        <strong>Action Required: Uncategorized Transactions</strong>
+    </div>
+    
+    <p>Hello,</p>
+    
+    <p>You have <strong>{{ count }}</strong> transactions that require your manual review and categorization.</p>
+    
+    <div style="background-color: #f8fafc; padding: 24px; border-radius: 12px; margin: 24px 0; text-align: center;">
+        <div style="font-size: 32px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">{{ count }}</div>
+        <div style="color: #64748b; font-size: 14px; text-transform: uppercase; font-weight: 600;">Pending Transactions</div>
+    </div>
+
+    <p>Categorizing these transactions ensures your financial reports and property P&L statements remain accurate.</p>
+
+    <div style="text-align: center; margin-top: 32px;">
+        <a href="{{ dashboard_url }}" class="button">Review Queue</a>
+    </div>
+{% endblock %}

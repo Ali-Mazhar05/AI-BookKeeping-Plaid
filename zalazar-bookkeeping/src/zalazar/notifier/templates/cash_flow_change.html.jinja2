@@ -1,0 +1,20 @@
+{% extends "base_email.html.jinja2" %}
+
+{% block content %}
+    <h2 style="color: #0f172a; margin-top: 0;">Cash Flow Alert</h2>
+    
+    <p>We've noticed a significant change in your cash flow for <strong>{{ period }}</strong>.</p>
+    
+    <div style="background-color: #f8fafc; padding: 24px; border-radius: 12px; margin: 24px 0; text-align: center;">
+        <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">Variance Detected</div>
+        <div style="font-size: 28px; font-weight: 800; color: {% if delta.startswith('-') %}#e11d48{% else %}#15803d{% endif %};">
+            {{ delta }}
+        </div>
+    </div>
+
+    <p>Monitoring these shifts helps you stay on top of your property performance and upcoming liquidity needs.</p>
+
+    <div style="text-align: center; margin-top: 32px;">
+        <a href="{{ dashboard_url }}" class="button">View Cash Flow Report</a>
+    </div>
+{% endblock %}

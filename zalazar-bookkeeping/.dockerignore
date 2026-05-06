@@ -1,0 +1,16 @@
+node_modules
+frontend
+.venv
+venv
+__pycache__
+*.pyc
+.git
+.github
+.pytest_cache
+uploads
+scratch
+database_*.txt
+*.pdf
+.env
+.env.*
+! .env.example

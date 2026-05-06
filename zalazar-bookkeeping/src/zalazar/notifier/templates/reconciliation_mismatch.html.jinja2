@@ -1,0 +1,34 @@
+{% extends "base_email.html.jinja2" %}
+
+{% block content %}
+    <div class="alert-box alert-warning" style="background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b;">
+        <strong>Reconciliation Mismatch</strong>
+    </div>
+    
+    <p>Hello,</p>
+    
+    <p>A discrepancy has been detected during the daily reconciliation process for your account <strong>{{ account }}</strong>.</p>
+    
+    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-bottom: 8px;">Plaid Reported Balance</td>
+                <td style="text-align: right; font-weight: 600; padding-bottom: 8px;">${{ plaid_balance }}</td>
+            </tr>
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-bottom: 8px;">System Calculated Balance</td>
+                <td style="text-align: right; font-weight: 600; padding-bottom: 8px;">${{ calculated_balance }}</td>
+            </tr>
+            <tr style="border-top: 1px solid #e2e8f0;">
+                <td style="color: #64748b; font-size: 14px; padding-top: 8px; font-weight: 700;">Difference</td>
+                <td style="text-align: right; font-weight: 700; padding-top: 8px; color: #ef4444; font-size: 18px;">${{ diff }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <p>This mismatch indicates that some transactions might be missing, duplicated, or incorrectly recorded in the system compared to your bank's records.</p>
+
+    <div style="text-align: center;">
+        <a href="{{ dashboard_url }}" class="button">View Reconciliation Log</a>
+    </div>
+{% endblock %}
