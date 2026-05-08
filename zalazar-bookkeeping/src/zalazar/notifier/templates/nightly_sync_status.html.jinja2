@@ -1,0 +1,51 @@
+{% extends "base_email.html.jinja2" %}
+
+{% block content %}
+    {% if success %}
+    <div class="alert-box" style="background-color: #f0fdf4; border-left: 4px solid #22c55e; color: #166534;">
+        <strong>Nightly Sync Completed Successfully</strong>
+    </div>
+    {% else %}
+    <div class="alert-box" style="background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b;">
+        <strong>Nightly Sync FAILED</strong>
+    </div>
+    {% endif %}
+
+    <p>Hello,</p>
+    <p>Here is the status of your nightly bank sync.</p>
+
+    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-bottom: 8px;">Status</td>
+                <td style="text-align: right; font-weight: 700; color: {{ '#15803d' if success else '#dc2626' }};">
+                    {{ 'Success' if success else 'Failed' }}
+                </td>
+            </tr>
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-top: 8px; padding-bottom: 8px;">Accounts Synced</td>
+                <td style="text-align: right; font-weight: 600;">{{ synced_count }}</td>
+            </tr>
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-top: 8px;">Errors</td>
+                <td style="text-align: right; font-weight: 600; color: {{ '#dc2626' if error_count > 0 else '#15803d' }};">
+                    {{ error_count }}
+                </td>
+            </tr>
+            {% if errors %}
+            <tr>
+                <td colspan="2" style="padding-top: 16px; font-size: 13px; color: #991b1b;">
+                    <strong>Error details:</strong><br>
+                    {% for err in errors %}
+                    &bull; {{ err }}<br>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div style="text-align: center; margin-top: 32px;">
+        <a href="{{ dashboard_url }}" class="button">View Dashboard</a>
+    </div>
+{% endblock %}

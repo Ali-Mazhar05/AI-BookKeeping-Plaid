@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from .client import get_plaid_client, encrypt_token
-from ..db import supabase
 from ..config import settings
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
@@ -26,7 +25,7 @@ async def create_link_token(entity_id: str, access_token: Optional[str] = None) 
         "country_codes": [CountryCode("US")],
         "language": "en",
         "user": LinkTokenCreateRequestUser(client_user_id=str(entity_id)),
-        "webhook": f"{settings.SUPABASE_URL}/functions/v1/plaid-webhook"
+        "webhook": f"{settings.API_URL}/plaid/webhooks"
     }
     
     if access_token:
@@ -92,17 +91,19 @@ async def exchange_public_token_and_save(session: AsyncSession, request_data: Ex
                     account_last4,
                     account_type,
                     current_balance,
+                    source_type,
                     is_active,
                     last_synced_at,
                     updated_at
                 ) VALUES (
                     :entity_id, :plaid_account_id, :plaid_item_id, :encrypted_token,
                     :bank_name, :account_name, :account_last4, :account_type,
-                    :current_balance, TRUE, NOW(), NOW()
+                    :current_balance, 'plaid', TRUE, NOW(), NOW()
                 )
                 ON CONFLICT (plaid_account_id) DO UPDATE SET
                     plaid_access_token_encrypted = EXCLUDED.plaid_access_token_encrypted,
                     current_balance = EXCLUDED.current_balance,
+                    source_type = 'plaid',
                     is_active = TRUE,
                     last_synced_at = NOW(),
                     updated_at = NOW()

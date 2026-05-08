@@ -1,0 +1,4 @@
+Nightly Sync {{ 'Succeeded' if success else 'FAILED' }}: {{ synced_count }} account(s) synced, {{ error_count }} error(s).
+{% if not success %}
+Check the dashboard for details: {{ dashboard_url }}
+{% endif %}

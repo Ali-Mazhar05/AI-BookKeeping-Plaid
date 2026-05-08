@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { Check, X, Edit3, CheckCircle2, Save, Trash2, RefreshCcw, MoreHorizontal, Layers } from 'lucide-react';
 import { useNotification } from './Notification';
+import ConfirmModal from './ConfirmModal';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -175,6 +176,8 @@ const ReviewQueue = ({ entityId }) => {
   const highlightedTxId = searchParams.get('tx_id');
   const rowRefs = useRef({});
   const { showNotification } = useNotification();
+  const [confirm, setConfirm] = useState({ isOpen: false, title: '', message: '', onConfirm: null, danger: false });
+  const closeConfirm = () => setConfirm(prev => ({ ...prev, isOpen: false }));
 
   useEffect(() => {
     fetchMetadata();
@@ -240,24 +243,32 @@ const ReviewQueue = ({ entityId }) => {
     } catch (err) {
       const status = err.response?.status ? `[${err.response.status}]` : '';
       const detail = err.response?.data?.detail || err.message;
-      alert(`Failed to approve transactions ${status}: ${detail}`);
+      showNotification(`Failed to approve transactions ${status}: ${detail}`, 'error');
       fetchQueue();
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleExclude = async (txId) => {
-    if (!window.confirm("Exclude this transaction?")) return;
-    try {
-      await axios.post(`${API_BASE}/queue/${txId}/exclude`);
-      setQueue(prev => prev.filter(tx => tx.id !== txId));
-      setSelectedIds(prev => prev.filter(id => id !== txId));
-    } catch (err) {
-      const status = err.response?.status ? `[${err.response.status}]` : '';
-      const detail = err.response?.data?.detail || err.message;
-      showNotification(`Failed to exclude transaction ${status}: ${detail}`, "error");
-    }
+  const handleExclude = (txId) => {
+    setConfirm({
+      isOpen: true,
+      title: 'Exclude Transaction',
+      message: 'Exclude this transaction from the review queue? It will be marked as excluded and removed from this list.',
+      danger: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await axios.post(`${API_BASE}/queue/${txId}/exclude`);
+          setQueue(prev => prev.filter(tx => tx.id !== txId));
+          setSelectedIds(prev => prev.filter(id => id !== txId));
+        } catch (err) {
+          const status = err.response?.status ? `[${err.response.status}]` : '';
+          const detail = err.response?.data?.detail || err.message;
+          showNotification(`Failed to exclude transaction ${status}: ${detail}`, 'error');
+        }
+      },
+    });
   };
 
   const handleSaveCorrection = async (txId, data) => {
@@ -539,6 +550,17 @@ const ReviewQueue = ({ entityId }) => {
           onCancel={() => setIsBulkEditing(false)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={confirm.isOpen}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText="Exclude"
+        cancelText="Cancel"
+        danger={confirm.danger}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       <style>{`
         .selected-row { background: rgba(212, 175, 55, 0.05); }

@@ -76,16 +76,49 @@ class CorrectionRequest(BaseModel):
 @router.post("/{tx_id}/approve")
 async def approve_transaction(tx_id: uuid.UUID, session: AsyncSession = Depends(get_db)):
     try:
-        result = await session.execute(
+        tx_res = await session.execute(
             text("""
                 UPDATE transactions SET status = 'reviewed', updated_at = NOW()
                 WHERE id = :id AND status IN ('pending_review', 'flagged', 'ai_suggested')
-                RETURNING id
+                RETURNING id, entity_id, amount
             """),
             {"id": tx_id}
         )
-        if not result.fetchone():
+        tx = tx_res.fetchone()
+        if not tx:
             raise HTTPException(status_code=404, detail="Transaction not found in queue")
+
+        # Ensure every approved transaction has at least one allocation entry so it
+        # counts toward DSCR. If allocations already exist (e.g. from auto_categorized
+        # via a vendor rule), skip. Otherwise spread evenly across active properties.
+        existing = await session.execute(
+            text("SELECT 1 FROM transaction_allocations WHERE transaction_id = :tid LIMIT 1"),
+            {"tid": tx.id}
+        )
+        if not existing.fetchone():
+            props = await session.execute(
+                text("SELECT id FROM properties WHERE entity_id = :eid AND is_active = TRUE ORDER BY name"),
+                {"eid": tx.entity_id}
+            )
+            property_ids = [r.id for r in props.fetchall()]
+            if property_ids:
+                from decimal import Decimal, ROUND_HALF_EVEN
+                n = len(property_ids)
+                amount = Decimal(str(tx.amount))
+                per = (amount / n).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+                for i, pid in enumerate(property_ids):
+                    alloc_amt = per
+                    if i == n - 1:
+                        alloc_amt = amount - per * (n - 1)
+                    await session.execute(
+                        text("""
+                            INSERT INTO transaction_allocations
+                                (transaction_id, property_id, amount, percentage, method)
+                            VALUES (:tid, :pid, :amt, :pct, 'even_split')
+                        """),
+                        {"tid": tx.id, "pid": pid, "amt": alloc_amt, "pct": round(100.0 / n, 4)}
+                    )
+
         await session.commit()
         return {"status": "approved"}
     except HTTPException:

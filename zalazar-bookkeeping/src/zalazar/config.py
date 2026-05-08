@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "local"
     DASHBOARD_URL: str = "http://localhost:5173"
+    API_URL: str = "http://localhost:8000"
     SENTRY_DSN: Optional[str] = None
     
     # Reconciliation

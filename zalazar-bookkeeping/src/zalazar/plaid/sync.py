@@ -1,5 +1,6 @@
 from typing import Optional
 from decimal import Decimal
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
@@ -179,7 +180,7 @@ async def process_transaction(session: AsyncSession, account: dict, plaid_tx: di
         "status": classification['status'],
         "categorization_method": classification['method'],
         "categorization_reason": classification.get('reason'),
-        "ai_raw_response": classification.get('ai_raw_response'),
+        "ai_raw_response": classification.get('ai_raw'),
         "account_id": classification.get('account_id'),
         "merchant_name": tx_model['merchant_name'],
         "payment_channel": tx_model['payment_channel'],
@@ -192,6 +193,23 @@ async def process_transaction(session: AsyncSession, account: dict, plaid_tx: di
     result = await session.execute(query, params)
     tx_id = result.scalar_one()
     
+    # Notify when AI cannot confidently categorize — email only; SMS digest fires at 9 AM
+    if classification['status'] == 'pending_review':
+        asyncio.create_task(
+            dispatch.send(
+                entity_id=tx_model['entity_id'],
+                notification_type='uncategorized',
+                channel='email',
+                context={
+                    "vendor": tx_model['vendor_name_clean'] or tx_model['description_clean'],
+                    "amount": f"{abs(amount):,.2f}",
+                    "date": str(tx_model['transaction_date']),
+                    "dashboard_url": dispatch.get_dashboard_url(f"/review?tx_id={tx_id}"),
+                },
+                related_transaction_id=tx_id,
+            )
+        )
+
     # If auto_categorized, we MUST have allocations
     if classification['status'] == 'auto_categorized':
         allocations = await allocate(session, tx_model, classification)
@@ -229,6 +247,22 @@ async def process_transaction(session: AsyncSession, account: dict, plaid_tx: di
                     "dashboard_url": dispatch.get_dashboard_url(f"/review?tx_id={tx_id}")
                 },
                 related_transaction_id=tx_id
+            )
+        )
+
+    if amount > 0: # Inflow — income received
+        asyncio.create_task(
+            dispatch.send(
+                entity_id=tx_model['entity_id'],
+                notification_type='income_received',
+                channel='sms',
+                context={
+                    "amount": f"{amount:,.2f}",
+                    "source": tx_model['vendor_name_clean'] or tx_model['description_clean'],
+                    "date": tx_model['transaction_date'].isoformat() if hasattr(tx_model['transaction_date'], 'isoformat') else str(tx_model['transaction_date']),
+                    "dashboard_url": dispatch.get_dashboard_url(f"/review?tx_id={tx_id}"),
+                },
+                related_transaction_id=tx_id,
             )
         )
 
@@ -277,48 +311,58 @@ async def process_removal(session: AsyncSession, plaid_tx_id: str):
     )
 
 async def reclassify_transactions(entity_id: str):
-    """Finds transactions stuck in pending_review due to AI errors and re-attempts classification."""
+    """Re-classifies every transaction currently in the review queue for the entity."""
     async with AsyncSessionLocal() as session:
-        # 1. Fetch relevant transactions
-        query = text("""
-            SELECT id, plaid_transaction_id, transaction_date, amount, vendor_name_clean, description_clean, merchant_name, payment_channel, iso_currency_code, plaid_category_primary, plaid_category_detailed, plaid_pending
-            FROM transactions 
-            WHERE entity_id = :entity_id 
-              AND status = 'pending_review' 
-              AND categorization_reason LIKE 'AI %'
-        """)
-        res = await session.execute(query, {"entity_id": entity_id})
+        # Fetch all queue-eligible transactions — pending_review, flagged, and ai_suggested
+        # Include entity_id and account_name so the classifier has full context
+        res = await session.execute(
+            text("""
+                SELECT
+                    t.id, t.entity_id, t.bank_account_id,
+                    t.plaid_transaction_id, t.transaction_date, t.amount,
+                    t.vendor_name_clean, t.description_clean, t.description,
+                    t.merchant_name, t.payment_channel, t.iso_currency_code,
+                    t.plaid_category_primary, t.plaid_category_detailed, t.plaid_pending,
+                    b.account_name
+                FROM transactions t
+                LEFT JOIN bank_accounts b ON b.id = t.bank_account_id
+                WHERE t.entity_id = :entity_id
+                  AND t.status IN ('pending_review', 'flagged', 'ai_suggested')
+            """),
+            {"entity_id": entity_id},
+        )
         txs = res.fetchall()
-        
+
         logger.info("Starting re-classification", entity_id=entity_id, count=len(txs))
-        
+
         for tx in txs:
             try:
-                # Convert row to dict matching the model expected by classify_transaction
                 tx_model = dict(tx._mapping)
-                tx_model['pending'] = tx_model.pop('plaid_pending') # matching naming in process_transaction
-                
+                tx_model['pending'] = tx_model.pop('plaid_pending')
+
                 classification = await classify_transaction(session, tx_model)
-                
-                # Update transaction
+
                 await session.execute(
                     text("""
-                        UPDATE transactions 
-                        SET status = :status,
+                        UPDATE transactions
+                        SET status                = :status,
                             categorization_method = :method,
                             categorization_reason = :reason,
-                            ai_raw_response = :ai_raw,
-                            account_id = :account_id
+                            ai_raw_response       = CAST(:ai_raw AS jsonb),
+                            account_id            = :account_id,
+                            confidence_category   = :confidence,
+                            updated_at            = NOW()
                         WHERE id = :id
                     """),
                     {
                         "id": tx.id,
-                        "status": classification['status'],
-                        "method": classification['method'],
-                        "reason": classification.get('reason'),
-                        "ai_raw": classification.get('ai_raw_response'),
-                        "account_id": classification.get('account_id')
-                    }
+                        "status":     classification['status'],
+                        "method":     classification['method'],
+                        "reason":     classification.get('reason'),
+                        "ai_raw":     json.dumps(classification.get('ai_raw')) if classification.get('ai_raw') else None,
+                        "account_id": classification.get('account_id'),
+                        "confidence": classification.get('confidence'),
+                    },
                 )
                 
                 # Handle allocations if auto-categorized

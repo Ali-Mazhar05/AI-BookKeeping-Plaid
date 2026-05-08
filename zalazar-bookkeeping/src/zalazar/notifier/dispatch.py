@@ -46,7 +46,9 @@ def _is_enabled(user_settings: Any, notification_type: str) -> bool:
         'income_received': user_settings.get('notify_income_received', True),
         'cash_flow_change': user_settings.get('notify_cash_flow_change', True),
         'reconciliation_mismatch': user_settings.get('notify_reconciliation_fail', True),
+        'plaid_auth_alert': user_settings.get('notify_plaid_auth', True),
         'weekly_summary': True,
+        'nightly_sync_status': True,
     }
     return mapping.get(notification_type, False)
 
@@ -93,12 +95,14 @@ def _subject_for(notification_type: str, context: Dict[str, Any]) -> str:
         'income_received': "Alert: Income Received",
         'uncategorized': "Action Required: Review Transactions",
         'cash_flow_change': "Alert: Cash Flow Change",
-        'weekly_summary': "Weekly Financial Summary"
+        'weekly_summary': "Weekly Financial Summary",
+        'plaid_auth_alert': "Action Required: Re-authenticate Bank Account",
+        'nightly_sync_status': f"Nightly Sync {'Succeeded' if context.get('success') else 'FAILED'}",
     }
     return subjects.get(notification_type, "System Notification")
 
 async def send(
-    entity_id: UUID,
+    entity_id: Optional[UUID],
     notification_type: str,
     channel: str,
     context: Dict[str, Any],
@@ -138,7 +142,7 @@ async def _is_throttled(session: AsyncSession, entity_id: UUID, notification_typ
 
 async def _send_impl(
     session: AsyncSession,
-    entity_id: UUID,
+    entity_id: Optional[UUID],
     notification_type: str,
     channel: str,
     context: Dict[str, Any],
@@ -146,13 +150,19 @@ async def _send_impl(
     related_reconciliation_id: Optional[UUID] = None,
     related_property_id: Optional[UUID] = None,
 ):
-        user_settings = await get_notification_settings(session, entity_id)
-        if not _is_enabled(user_settings, notification_type):
-            logger.info("Notification suppressed by settings", type=notification_type)
-            return
+        if entity_id is not None:
+            user_settings = await get_notification_settings(session, entity_id)
+            if not _is_enabled(user_settings, notification_type):
+                logger.info("Notification suppressed by settings", type=notification_type)
+                return
+            throttled = await _is_throttled(session, entity_id, notification_type)
+        else:
+            # System-level notification (no entity); send unconditionally to admin recipient
+            user_settings = None
+            throttled = False
 
         # Check throttling
-        if await _is_throttled(session, entity_id, notification_type):
+        if throttled:
             logger.info("Notification throttled", type=notification_type, entity_id=str(entity_id))
             status = 'suppressed'
             reason = 'throttled'

@@ -43,24 +43,27 @@ async def calculate_property_dscr(
     
     for row in rows:
         amt = Decimal(str(row.amount))
-        # Accounting: Inflows (+) Outflows (-)
-        # But for DSCR we want absolute values usually, then sign them
-        
+
         if row.account_type == 'income':
+            # Positive amt = income received; negative = refund/reversal, still correct as signed
             income += amt
         elif row.account_type == 'operating_expense':
+            # Always treat as cost regardless of sign
             operating_expenses += abs(amt)
         elif row.account_type == 'property_cost':
             if row.account_name == 'Mortgage Interest':
                 interest += abs(amt)
+            elif row.account_name in ('Capital Improvements', 'Furniture / Equipment'):
+                # CapEx excluded from NOI but included as operating expense for visibility
+                operating_expenses += abs(amt)
             else:
                 operating_expenses += abs(amt)
-        elif row.account_name == 'Loan Principal':
-            principal += abs(amt)
-        elif row.account_name == 'Furniture / Equipment':
-            # Treat furniture as an operating expense per user preference
-            operating_expenses += abs(amt)
-            
+        elif row.account_type == 'capital_non_expense':
+            # Principal Reduction counts toward debt service; Owner Contributions/Distributions excluded
+            if row.account_name == 'Principal Reduction':
+                principal += abs(amt)
+            # Owner Contributions / Distributions are balance-sheet items — excluded from DSCR
+
     noi = income - operating_expenses
     debt_service = interest + principal
     

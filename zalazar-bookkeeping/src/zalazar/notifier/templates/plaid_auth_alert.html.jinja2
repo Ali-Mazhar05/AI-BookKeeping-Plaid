@@ -1,0 +1,31 @@
+{% extends "base_email.html.jinja2" %}
+
+{% block content %}
+    <div class="alert-box" style="background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b;">
+        <strong>Bank Re-Authentication Required</strong>
+    </div>
+
+    <p>Hello,</p>
+
+    <p>Your bank connection for <strong>{{ account }}</strong> requires re-authentication.
+    Until this is resolved, new transactions will not sync into your bookkeeping system.</p>
+
+    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-bottom: 8px;">Account</td>
+                <td style="text-align: right; font-weight: 600;">{{ account }}</td>
+            </tr>
+            <tr>
+                <td style="color: #64748b; font-size: 14px; padding-top: 8px;">Action Required</td>
+                <td style="text-align: right; font-weight: 700; color: #dc2626;">Re-link account</td>
+            </tr>
+        </table>
+    </div>
+
+    <p>Click the button below to securely re-authenticate through Plaid. This takes less than a minute.</p>
+
+    <div style="text-align: center; margin-top: 32px;">
+        <a href="{{ reauth_url }}" class="button">Re-authenticate Now</a>
+    </div>
+{% endblock %}

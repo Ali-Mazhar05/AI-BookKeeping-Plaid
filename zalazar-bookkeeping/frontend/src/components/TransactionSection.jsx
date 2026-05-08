@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Search, Download, Edit3, Trash2, X } from 'lucide-react';
 import { useNotification } from './Notification';
+import ConfirmModal from './ConfirmModal';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -98,22 +99,25 @@ const TransactionSection = ({ entityId }) => {
   const [properties, setProperties] = useState([]);
 
   const [selectedAccount, setSelectedAccount] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [searchParams] = useSearchParams();
   const initialPropertyId = searchParams.get('property_id') || '';
+  const initialCategoryId = searchParams.get('category_id') || '';
+  const [selectedCategory, setSelectedCategory] = useState(initialCategoryId);
   const [selectedProperty, setSelectedProperty] = useState(initialPropertyId);
 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('latest');
   const [editingTx, setEditingTx] = useState(null);
+  const [confirm, setConfirm] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+  const closeConfirm = () => setConfirm(prev => ({ ...prev, isOpen: false }));
   const { showNotification } = useNotification();
 
   useEffect(() => {
     const propId = searchParams.get('property_id');
-    if (propId) {
-      setSelectedProperty(propId);
-    }
+    const catId = searchParams.get('category_id');
+    if (propId) setSelectedProperty(propId);
+    if (catId) setSelectedCategory(catId);
   }, [searchParams]);
 
   useEffect(() => {
@@ -152,16 +156,24 @@ const TransactionSection = ({ entityId }) => {
     }
   };
 
-  const handleDelete = async (txId) => {
-    if (!window.confirm('Permanently delete this transaction and all its allocations? This cannot be undone.')) return;
-    try {
-      await axios.delete(`${API_BASE}/transactions/${txId}`);
-      setTransactions(prev => prev.filter(t => t.id !== txId));
-    } catch (err) {
-      const status = err.response?.status ? `[${err.response.status}]` : '';
-      const detail = err.response?.data?.detail || err.message;
-      showNotification(`Failed to delete transaction ${status}: ${detail}`, 'error');
-    }
+  const handleDelete = (txId) => {
+    setConfirm({
+      isOpen: true,
+      title: 'Delete Transaction',
+      message: 'Permanently delete this transaction and all its property allocations? This cannot be undone.',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await axios.delete(`${API_BASE}/transactions/${txId}`);
+          setTransactions(prev => prev.filter(t => t.id !== txId));
+          showNotification('Transaction deleted.', 'success');
+        } catch (err) {
+          const status = err.response?.status ? `[${err.response.status}]` : '';
+          const detail = err.response?.data?.detail || err.message;
+          showNotification(`Failed to delete transaction ${status}: ${detail}`, 'error');
+        }
+      },
+    });
   };
 
   const handleSaveEdit = async (txId, data) => {
@@ -387,6 +399,17 @@ const TransactionSection = ({ entityId }) => {
           onCancel={() => setEditingTx(null)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={confirm.isOpen}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        danger={true}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       <style>{`
         .ledger-mobile-card {
